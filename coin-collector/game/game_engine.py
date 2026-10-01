@@ -16,7 +16,12 @@ from game.collection import check_collection
 from game.renderer import WIDTH, HEIGHT
 
 NUM_COINS = 6
-COIN_VALUE = 1
+
+COIN_TYPES = [
+    (1, (184, 115, 51)),   # Bronze
+    (3, (192, 192, 192)),  # Silver
+    (5, (230, 190, 60)),   # Gold
+]
 
 
 class GameEngine:
@@ -28,7 +33,16 @@ class GameEngine:
     def _random_coin(self):
         x = random.randint(30, WIDTH - 30)
         y = random.randint(30, HEIGHT - 30)
-        return Coin(x=x, y=y, radius=12, value=COIN_VALUE)
+
+        value, color = random.choice(COIN_TYPES)
+
+        return Coin(
+            x=x,
+            y=y,
+            radius=12,
+            value=value,
+            color=color,
+        )
 
     def handle_input(self, keys_pressed):
         dx = dy = 0
