@@ -1,5 +1,5 @@
 """
-GameEngine: owns the player, coins, obstacles, and lives.
+GameEngine: owns the player, coins, obstacles, lives, and round timer.
 """
 
 import random
@@ -22,7 +22,14 @@ COIN_TYPES = [
 
 class GameEngine:
     def __init__(self):
-        self.player = Player(x=WIDTH / 2, y=HEIGHT / 2)
+        self.round_duration = 30
+        self.reset_round()
+
+    def reset_round(self):
+        self.player = Player(
+            x=WIDTH / 2,
+            y=HEIGHT / 2
+        )
 
         self.coins = [
             self._random_coin()
@@ -30,23 +37,23 @@ class GameEngine:
         ]
 
         self.score = 0
-
-        # Task 3: lives
         self.lives = 3
 
-        # Task 3: obstacles
+        self.round_start_time = pygame.time.get_ticks()
+        self.remaining_time = self.round_duration
+
+        self.round_over = False
+
+        self.safe_x = WIDTH / 2
+        self.safe_y = HEIGHT / 2
+
+        self.collision_cooldown = 0
+
         self.obstacles = [
             pygame.Rect(150, 120, 120, 30),
             pygame.Rect(430, 200, 120, 30),
             pygame.Rect(250, 350, 160, 30),
         ]
-
-        # Safe position used after obstacle collision
-        self.safe_x = WIDTH / 2
-        self.safe_y = HEIGHT / 2
-
-        # Prevent repeated life loss while touching an obstacle
-        self.collision_cooldown = 0
 
     def _random_coin(self):
         x = random.randint(30, WIDTH - 30)
@@ -63,6 +70,9 @@ class GameEngine:
         )
 
     def handle_input(self, keys_pressed):
+        if self.round_over:
+            return
+
         dx = dy = 0
 
         if keys_pressed[pygame.K_UP]:
@@ -80,6 +90,25 @@ class GameEngine:
         self.player.move(dx, dy, WIDTH, HEIGHT)
 
     def update(self):
+        if self.round_over:
+            return
+
+        # Update timer
+        elapsed_time = (
+            pygame.time.get_ticks() - self.round_start_time
+        ) / 1000
+
+        self.remaining_time = max(
+            0,
+            self.round_duration - elapsed_time
+        )
+
+        # End round when timer reaches zero
+        if self.remaining_time <= 0:
+            self.remaining_time = 0
+            self.round_over = True
+            return
+
         # Collect coins
         collected = check_collection(
             self.player,
@@ -100,19 +129,22 @@ class GameEngine:
         if self.collision_cooldown == 0:
             for obstacle in self.obstacles:
                 if player_rect.colliderect(obstacle):
-                    # Lose one life
+
                     self.lives -= 1
 
-                    # Move player back to safe position
                     self.player.reset_position(
                         self.safe_x,
                         self.safe_y
                     )
 
-                    # Prevent losing multiple lives instantly
                     self.collision_cooldown = 30
 
                     break
+
+        # End round when lives reach zero
+        if self.lives <= 0:
+            self.lives = 0
+            self.round_over = True
 
     def draw(self, surface, font):
         from game import renderer
@@ -122,7 +154,10 @@ class GameEngine:
             self.player,
             self.coins,
             self.obstacles,
-            self.lives
+            self.lives,
+            self.remaining_time,
+            self.round_over,
+            font
         )
 
         renderer.draw_text(
@@ -131,11 +166,3 @@ class GameEngine:
             f"Score: {self.score}",
             (10, 10)
         )
-
-        # Game-over message
-        if self.lives <= 0:
-            renderer.draw_banner(
-                surface,
-                font,
-                "GAME OVER"
-            )
